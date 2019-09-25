@@ -198,8 +198,9 @@ export default {
     onDraw(e) {
       const x = ft.line(this.screen[0], this.view[0], e.pointers[0].clientX);
       const y = ft.line(this.screen[1], this.view[1], e.pointers[0].clientY);
-      Vue.set(this.drawing[0], 1, x);
-      Vue.set(this.drawing[1], 1, y);
+
+      Vue.set(this.drawing[0], 1, ft.clamp(this.frame.bounds[0], x));
+      Vue.set(this.drawing[1], 1, ft.clamp(this.frame.bounds[1], y));
     },
     onDrawStart(e) {
       const x = ft.line(this.screen[0], this.view[0], e.pointers[0].clientX);
@@ -208,7 +209,10 @@ export default {
     },
     onDrawEnd() {
       if (this.drawing) {
-        this.$emit("spawnFrame", this.drawing);
+        this.$emit("spawnFrame", [
+          this.drawing[0].sort((a, b) => a - b),
+          this.drawing[1].sort((a, b) => a - b)
+        ]);
       }
       this.drawing = null;
     }

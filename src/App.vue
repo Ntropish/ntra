@@ -148,7 +148,7 @@ export default {
           const viewRatio = ft.duration(
             frame.bounds[0].map(ft.from(this.view[0]))
           );
-          if (viewRatio > 0.33) {
+          if (viewRatio > 0.2) {
             frame.children.forEach(scanFrame);
             Vue.set(this.collapsedStore, id, false);
           } else {
