@@ -1,8 +1,9 @@
 <template>
   <div class="frame" :class="{ collapsed: collapsed }" :style="styles">
     <div class="bounds" :style="boundsStyle"></div>
-    <div ref="title" class="title">
+    <div class="title">
       <div
+        ref="title"
         class="title-offset"
         v-hammer:pan="onPan"
         v-hammer:panend="onPanEnd"
@@ -27,7 +28,7 @@ import { from, to } from "froto";
 
 export default {
   name: "frame",
-  props: ["view", "frame", "screen", "collapsed", "parent"],
+  props: ["view", "frame", "screen", "collapsed", "parent", "depth"],
   data() {
     return {
       boundsStart: null
@@ -105,12 +106,9 @@ export default {
   },
   methods: {
     textOverflows() {
-      return (
-        !this.$el ||
-        !this.$refs.title ||
-        !this.$refs.title.scrollWidth ||
-        this.$refs.title.clientWidth > this.$el.clientWidth
-      );
+      if (!this.$el || !this.$refs.title) return true;
+      const width = parseInt(getComputedStyle(this.$el).width);
+      return this.$refs.title.clientWidth > width;
     },
     onPan(e) {
       const toViewX = ft.to(this.view[0]);
@@ -235,6 +233,12 @@ export default {
   height: 0.1em;
   border-radius: 1em;
   background: hsla(0, 0%, 100%, 0.3);
+  transition: opacity 0.1s;
+  opacity: 0;
+}
+
+.frame:hover .resize-dot {
+  opacity: 1;
 }
 .resize:hover .resize-dot {
   background: hsla(0, 0%, 100%, 0.7);

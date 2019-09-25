@@ -30,7 +30,7 @@ export default {
       frames: {
         // actual implementation will need uuids, maybe urls too
         0: {
-          name: "root",
+          name: "",
           parent: null,
           children: [1],
           bounds: [[-20, 20], [-20, 20]],
