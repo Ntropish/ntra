@@ -2,20 +2,35 @@
   <div class="frame" :class="{ collapsed: collapsed }" :style="styles">
     <div class="bounds" :style="boundsStyle"></div>
     <div ref="title" class="title">
-      <div class="title-offset" v-hammer:pan="onPan" v-hammer:panstart="onPanStart">{{ frame.name }}</div>
+      <div
+        class="title-offset"
+        v-hammer:pan="onPan"
+        v-hammer:panend="onPanEnd"
+        v-hammer:panstart="onPanStart"
+      >{{ frame.name }}</div>
+    </div>
+    <div
+      class="resize"
+      v-hammer:pan="onResize"
+      v-hammer:panstart="onResizeStart"
+      v-hammer:panend="onResizeEnd"
+      :style="resizeStyle"
+    >
+      <div class="resize-dot"></div>
     </div>
   </div>
 </template>
 
 <script>
 import * as ft from "froto";
+import { from, to } from "froto";
 
 export default {
   name: "frame",
-  props: ["view", "frame", "screen", "collapsed"],
+  props: ["view", "frame", "screen", "collapsed", "parent"],
   data() {
     return {
-      boundsStart: {}
+      boundsStart: null
     };
   },
   computed: {
@@ -39,7 +54,7 @@ export default {
       const border =
         this.collapsed && !this.textOverflows()
           ? `4px solid ${frameColorBorder}`
-          : `4px solid ${frameColorBorder}`;
+          : `none`;
 
       const result = {
         border,
@@ -52,7 +67,7 @@ export default {
 
       if (this.collapsed) {
         result.color = frameColor;
-        result.textShadow = `0px 2px 4px hsla(0, 0%, 0%, 0.1),
+        result.textShadow = `0 0 4px hsla(0, 0%, 100%, 0.1),
                              0px 0px 8px ${frameColorBorder}`;
       } else {
         result.boxShadow =
@@ -71,6 +86,20 @@ export default {
       return {
         boxShadow,
         background
+      };
+    },
+    resizeStyle() {
+      const boundsX = this.frame.bounds[0];
+      const boundsY = this.frame.bounds[1];
+      const screenX = this.screen[0];
+      const screenY = this.screen[1];
+      const viewX = this.view[0];
+      const viewY = this.view[1];
+      const left = boundsX.map(from(viewX)).map(to(screenX))[1];
+      const top = boundsY.map(from(viewY)).map(to(screenY))[1];
+      return {
+        left: `calc(${left}px - 0.3em)`,
+        top: `calc(${top}px - 0.3em)`
       };
     }
   },
@@ -102,6 +131,37 @@ export default {
     },
     onPanStart() {
       this.boundsStart = this.frame.bounds;
+    },
+    onPanEnd() {
+      this.boundsStart = null;
+    },
+    onResize(e) {
+      const startBoundsX = this.boundsStart[0];
+      const startBoundsY = this.boundsStart[1];
+      const screenX = this.screen[0];
+      const screenY = this.screen[1];
+      const viewX = this.view[0];
+      const viewY = this.view[1];
+      const deltaViewX = ft.duration(
+        [0, e.deltaX].map(from(screenX)).map(to(viewX))
+      );
+      const deltaViewY = ft.duration(
+        [0, e.deltaY].map(from(screenY)).map(to(viewY))
+      );
+      const xMax = this.parent ? this.parent.bounds[0][1] : Infinity;
+      const yMax = this.parent ? this.parent.bounds[1][1] : Infinity;
+      const xClamp = ft.clamp([startBoundsX[0], xMax]);
+      const yClamp = ft.clamp([startBoundsY[0], yMax]);
+      const newX = xClamp(this.boundsStart[0][1] + deltaViewX);
+      const newY = yClamp(this.boundsStart[1][1] + deltaViewY);
+      const newBounds = [[startBoundsX[0], newX], [startBoundsY[0], newY]];
+      this.$emit("updateBounds", newBounds);
+    },
+    onResizeStart() {
+      this.boundsStart = this.frame.bounds;
+    },
+    onResizeEnd() {
+      this.boundsStart = null;
     }
   }
 };
@@ -162,5 +222,21 @@ export default {
 .frame.collapsed .title-offset {
   position: relative;
   right: 50%;
+}
+
+.resize {
+  position: fixed;
+  width: 0.3em;
+  cursor: grab;
+}
+.resize-dot {
+  margin: 0.1em;
+  width: 0.1em;
+  height: 0.1em;
+  border-radius: 1em;
+  background: hsla(0, 0%, 100%, 0.3);
+}
+.resize:hover .resize-dot {
+  background: hsla(0, 0%, 100%, 0.7);
 }
 </style>

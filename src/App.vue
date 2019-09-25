@@ -4,6 +4,7 @@
       :key="id"
       :collapsed="collapsedStore[id]"
       :frame="frames[id]"
+      :parent="getFrameParent(id)"
       :view="view"
       :screen="screen"
       @updateBounds="updateBounds(id, $event)"
@@ -91,8 +92,20 @@ export default {
       );
       Vue.set(this.view, 1, newYRange);
     },
-    updateBounds(id, bounds) {
-      Vue.set(this.frames[id], "bounds", bounds);
+    updateBounds(id, [x, y]) {
+      const frame = this.frames[id];
+      const parent = this.frames[frame.parent];
+      let newBounds = [x, y];
+      if (parent) {
+        newBounds = [
+          ft.clampRange(parent.bounds[0], x),
+          ft.clampRange(parent.bounds[1], y)
+        ];
+      }
+      Vue.set(frame, "bounds", newBounds);
+    },
+    getFrameParent(id) {
+      return (this.frames[id] && this.frames[this.frames[id].parent]) || null;
     }
   },
   computed: {
