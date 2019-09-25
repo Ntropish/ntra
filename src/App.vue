@@ -7,8 +7,9 @@
       :parent="getFrameParent(id)"
       :view="view"
       :screen="screen"
+      :depth="index"
       @updateBounds="updateBounds(id, $event)"
-      v-for="id in frameStack"
+      v-for="(id, index) in frameStack"
     />
   </div>
 </template>
@@ -30,7 +31,7 @@ export default {
       frames: {
         // actual implementation will need uuids, maybe urls too
         0: {
-          name: "",
+          name: "|",
           parent: null,
           children: [1],
           bounds: [[-20, 20], [-20, 20]],
@@ -94,6 +95,7 @@ export default {
     },
     updateBounds(id, [x, y]) {
       const frame = this.frames[id];
+      const originalBounds = frame.bounds;
       const parent = this.frames[frame.parent];
       let newBounds = [x, y];
       if (parent) {
@@ -102,6 +104,14 @@ export default {
           ft.clampRange(parent.bounds[1], y)
         ];
       }
+      const changeX = ft.sub(newBounds[0], originalBounds[0]);
+      const changeY = ft.sub(newBounds[1], originalBounds[1]);
+      frame.children.forEach(id => {
+        const frame = this.frames[id];
+        const newXFrame = ft.add(frame.bounds[0], changeX);
+        const newYFrame = ft.add(frame.bounds[1], changeY);
+        this.updateBounds(id, [newXFrame, newYFrame]);
+      });
       Vue.set(frame, "bounds", newBounds);
     },
     getFrameParent(id) {
