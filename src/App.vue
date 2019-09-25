@@ -9,6 +9,7 @@
       :screen="screen"
       :depth="index"
       @updateBounds="updateBounds(id, $event)"
+      @spawnFrame="spawnFrame(id, $event)"
       v-for="(id, index) in frameStack"
     />
   </div>
@@ -63,7 +64,7 @@ export default {
           hue: 190
         }
       },
-      nextFrameId: 1,
+      nextFrameId: 4,
       rootFrame: 0,
       collapsedStore: {}
     };
@@ -72,6 +73,19 @@ export default {
     this.screen = [[0, this.$el.clientWidth], [0, this.$el.clientHeight]];
   },
   methods: {
+    spawnFrame(parentId, bounds) {
+      console.log("spawning", parentId, bounds);
+      const id = this.nextFrameId++;
+      Vue.set(this.frames, id, {
+        name: "frame",
+        parent: parentId,
+        children: [],
+        bounds: [...bounds],
+        hue: Math.floor(Math.random() * 360)
+      });
+      const parent = this.frames[parentId];
+      Vue.set(parent, "children", parent.children.concat(id));
+    },
     onScroll(e) {
       const change = (0.05 * e.deltaY) / 100;
       const currentDurationX = ft.duration(this.view[0]);
@@ -93,17 +107,20 @@ export default {
       );
       Vue.set(this.view, 1, newYRange);
     },
-    updateBounds(id, [x, y]) {
+    updateBounds(id, newBounds) {
       const frame = this.frames[id];
       const originalBounds = frame.bounds;
       const parent = this.frames[frame.parent];
-      let newBounds = [x, y];
       if (parent) {
+        // parent will be null for the root node but
+        // all others need to be clamped down
         newBounds = [
-          ft.clampRange(parent.bounds[0], x),
-          ft.clampRange(parent.bounds[1], y)
+          ft.clampRange(parent.bounds[0], newBounds[0]),
+          ft.clampRange(parent.bounds[1], newBounds[1])
         ];
       }
+      // these convert from the previous bounds space to the equivalent
+      // in the new bounds space
       const mapX = ft.line(originalBounds[0], newBounds[0]);
       const mapY = ft.line(originalBounds[1], newBounds[1]);
       frame.children.forEach(id => {

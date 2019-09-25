@@ -1,6 +1,13 @@
 <template>
   <div class="frame" :class="{ collapsed: collapsed }" :style="styles">
-    <div class="bounds" :style="boundsStyle"></div>
+    <div
+      class="bounds"
+      v-hammer:pan="onDraw"
+      v-hammer:panend="onDrawEnd"
+      v-hammer:panstart="onDrawStart"
+      :style="boundsStyle"
+    ></div>
+    <div class="drawing" :style="drawingStyle"></div>
     <div class="title">
       <div
         ref="title"
@@ -25,13 +32,14 @@
 <script>
 import * as ft from "froto";
 import { from, to } from "froto";
-
+import Vue from "vue";
 export default {
   name: "frame",
   props: ["view", "frame", "screen", "collapsed", "parent", "depth"],
   data() {
     return {
-      boundsStart: null
+      boundsStart: null,
+      drawing: null
     };
   },
   computed: {
@@ -96,11 +104,37 @@ export default {
       const screenY = this.screen[1];
       const viewX = this.view[0];
       const viewY = this.view[1];
+      //
       const left = boundsX.map(from(viewX)).map(to(screenX))[1];
       const top = boundsY.map(from(viewY)).map(to(screenY))[1];
       return {
         left: `calc(${left}px - 0.3em)`,
         top: `calc(${top}px - 0.3em)`
+      };
+    },
+    drawingStyle() {
+      if (!this.drawing) {
+        return {
+          display: "none"
+        };
+      }
+      const drawX = [...this.drawing[0]].sort();
+      const drawY = [...this.drawing[1]].sort();
+      const screenX = this.screen[0];
+      const screenY = this.screen[1];
+      const viewX = this.view[0];
+      const viewY = this.view[1];
+      //
+      const drawScreenX = drawX.map(from(viewX)).map(to(screenX));
+      const drawScreenY = drawY.map(from(viewY)).map(to(screenY));
+      const width = Math.abs(ft.duration(drawScreenX));
+      const height = Math.abs(ft.duration(drawScreenY));
+      return {
+        background: "hsla(0, 0%, 100%, 0.6)",
+        left: Math.min(...drawScreenX) + "px",
+        top: Math.min(...drawScreenY) + "px",
+        height: height + "px",
+        width: width + "px"
       };
     }
   },
@@ -160,6 +194,23 @@ export default {
     },
     onResizeEnd() {
       this.boundsStart = null;
+    },
+    onDraw(e) {
+      const x = ft.line(this.screen[0], this.view[0], e.pointers[0].clientX);
+      const y = ft.line(this.screen[1], this.view[1], e.pointers[0].clientY);
+      Vue.set(this.drawing[0], 1, x);
+      Vue.set(this.drawing[1], 1, y);
+    },
+    onDrawStart(e) {
+      const x = ft.line(this.screen[0], this.view[0], e.pointers[0].clientX);
+      const y = ft.line(this.screen[1], this.view[1], e.pointers[0].clientY);
+      Vue.set(this, "drawing", [[x, x], [y, y]]);
+    },
+    onDrawEnd() {
+      if (this.drawing) {
+        this.$emit("spawnFrame", this.drawing);
+      }
+      this.drawing = null;
     }
   }
 };
@@ -242,5 +293,10 @@ export default {
 }
 .resize:hover .resize-dot {
   background: hsla(0, 0%, 100%, 0.7);
+}
+
+.drawing {
+  position: fixed;
+  z-index: 11;
 }
 </style>
