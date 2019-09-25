@@ -26,6 +26,11 @@
     >
       <div class="resize-dot"></div>
     </div>
+    <!-- <svg>
+      <clipPath id="clipping">
+        <polygon points="" />
+      </clipPath>
+    </svg>-->
   </div>
 </template>
 
@@ -43,6 +48,12 @@ export default {
     };
   },
   computed: {
+    clipPath() {
+      // const textHeight = 50;
+      // const textOffset = this.depth * 40;
+      return "";
+      // return `0,${textHeight} ${textOffset},${textHeight}, ${textOffset},0 ${}`
+    },
     styles() {
       const normalClamp = ft.clamp([0, 1]);
       const frame = this.frame;
@@ -86,7 +97,6 @@ export default {
 
       return result;
     },
-
     boundsStyle() {
       const boxShadow =
         `0 1em 1em -0.5em hsla(${this.frame.hue}, 60%, 20%, 0.2),` +
