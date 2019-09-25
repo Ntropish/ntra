@@ -26,16 +26,15 @@ export default {
   },
   data() {
     return {
-      // [ [xRange], [yRange] ]
-      view: [[-21, 21], [-21, 21]],
-      screen: [[0, 0], [0, 0]],
+      view: { x: [-21, 21], y: [-21, 21] },
+      screen: { x: [0, 0], y: [0, 0] },
       frames: {
         // actual implementation will need uuids, maybe urls too
         0: {
           name: "|",
           parent: null,
           children: [1],
-          bounds: [[-20, 20], [-20, 20]],
+          bounds: { x: [-20, 20], y: [-20, 20] },
           hue: 280
           // optional frame properties:
           // type: null // default/null type is just a basic frame
@@ -46,21 +45,21 @@ export default {
           name: "right",
           parent: 0,
           children: [2, 3],
-          bounds: [[-10, 17], [-17, 17]],
+          bounds: { x: [-10, 17], y: [-17, 17] },
           hue: 80
         },
         2: {
           name: "cornerizer",
           parent: 1,
           children: [],
-          bounds: [[-9, 0], [-10, 0]],
+          bounds: { x: [-9, 0], y: [-10, 0] },
           hue: 160
         },
         3: {
           name: "formalizer",
           parent: 1,
           children: [],
-          bounds: [[1, 16], [-5, 16]],
+          bounds: { x: [1, 16], y: [-5, 16] },
           hue: 190
         }
       },
@@ -70,17 +69,20 @@ export default {
     };
   },
   mounted() {
-    this.screen = [[0, this.$el.clientWidth], [0, this.$el.clientHeight]];
+    this.updateSize();
+    window.addEventListener("resize", this.updateSize);
+  },
+  beforeDestroy() {
+    window.removeEventListener("resize", this.updateSize);
   },
   methods: {
     spawnFrame(parentId, bounds) {
-      console.log("spawning", parentId, bounds);
       const id = this.nextFrameId++;
       Vue.set(this.frames, id, {
         name: "frame",
         parent: parentId,
         children: [],
-        bounds: [...bounds],
+        bounds: { ...bounds },
         hue: Math.floor(Math.random() * 360)
       });
       const parent = this.frames[parentId];
@@ -88,24 +90,24 @@ export default {
     },
     onScroll(e) {
       const change = (0.05 * e.deltaY) / 100;
-      const currentDurationX = ft.duration(this.view[0]);
-      const xOrigin = ft.from(this.screen[0], e.clientX);
-      const yOrigin = ft.from(this.screen[1], e.clientY);
-      const currentDurationY = ft.duration(this.view[1]);
+      const currentDurationX = ft.duration(this.view.x);
+      const currentDurationY = ft.duration(this.view.y);
+      const xOrigin = ft.from(this.screen.x, e.clientX);
+      const yOrigin = ft.from(this.screen.y, e.clientY);
 
       const newXRange = ft.grow(
         currentDurationX * change,
         xOrigin,
-        this.view[0]
+        this.view.x
       );
-      Vue.set(this.view, 0, newXRange);
 
       const newYRange = ft.grow(
         currentDurationY * change,
         yOrigin,
-        this.view[1]
+        this.view.y
       );
-      Vue.set(this.view, 1, newYRange);
+      Vue.set(this.view, "x", newXRange);
+      Vue.set(this.view, "y", newYRange);
     },
     updateBounds(id, newBounds) {
       const frame = this.frames[id];
@@ -114,39 +116,46 @@ export default {
       if (parent) {
         // parent will be null for the root node but
         // all others need to be clamped down
-        newBounds = [
-          ft.clampRange(parent.bounds[0], newBounds[0]),
-          ft.clampRange(parent.bounds[1], newBounds[1])
-        ];
+        newBounds = {
+          x: ft.clampRange(parent.bounds.x, newBounds.x),
+          y: ft.clampRange(parent.bounds.y, newBounds.y)
+        };
       }
       // these convert from the previous bounds space to the equivalent
       // in the new bounds space
-      const mapX = ft.line(originalBounds[0], newBounds[0]);
-      const mapY = ft.line(originalBounds[1], newBounds[1]);
+      const mapX = ft.line(originalBounds.x, newBounds.x);
+      const mapY = ft.line(originalBounds.y, newBounds.y);
       frame.children.forEach(id => {
         const frame = this.frames[id];
-        const newXFrame = frame.bounds[0].map(mapX);
-        const newYFrame = frame.bounds[1].map(mapY);
-        this.updateBounds(id, [newXFrame, newYFrame]);
+        const x = frame.bounds.x.map(mapX);
+        const y = frame.bounds.y.map(mapY);
+        this.updateBounds(id, { x, y });
       });
       Vue.set(frame, "bounds", newBounds);
     },
     getFrameParent(id) {
       return (this.frames[id] && this.frames[this.frames[id].parent]) || null;
+    },
+    updateSize() {
+      this.screen = {
+        x: [0, this.$el.clientWidth],
+        y: [0, this.$el.clientHeight]
+      };
     }
   },
   computed: {
     frameStack() {
       let result = [];
+      const view = this.view;
       const scanFrame = id => {
         const frame = this.frames[id];
-        const containsX = ft.containsRange(this.view[0], frame.bounds[0]);
-        const containsY = ft.containsRange(this.view[1], frame.bounds[1]);
+        const containsX = ft.containsRange(view.x, frame.bounds.x);
+        const containsY = ft.containsRange(view.y, frame.bounds.y);
         if (containsX && containsY) {
           result.push(id);
           // 0-1 of how much of the view this takes up
           const viewRatio = ft.duration(
-            frame.bounds[0].map(ft.from(this.view[0]))
+            frame.bounds.x.map(ft.from(this.view.x))
           );
           if (viewRatio > 0.2) {
             frame.children.forEach(scanFrame);

@@ -57,15 +57,15 @@ export default {
     styles() {
       const normalClamp = ft.clamp([0, 1]);
       const frame = this.frame;
-      const top = ft.from(this.view[1], frame.bounds[1][0]);
-      const left = ft.from(this.view[0], frame.bounds[0][0]);
+      const left = ft.from(this.view.x, frame.bounds.x[0]);
+      const top = ft.from(this.view.y, frame.bounds.y[0]);
 
       //  clamping needs to happen up here for width and height
       const width = ft.duration(
-        frame.bounds[0].map(ft.from(this.view[0])).map(normalClamp)
+        frame.bounds.x.map(ft.from(this.view.x)).map(normalClamp)
       );
       const height = ft.duration(
-        frame.bounds[1].map(ft.from(this.view[1])).map(normalClamp)
+        frame.bounds.y.map(ft.from(this.view.y)).map(normalClamp)
       );
 
       const frameColor = `hsla(${this.frame.hue}, 60%, 60%, 0.95)`;
@@ -108,15 +108,12 @@ export default {
       };
     },
     resizeStyle() {
-      const boundsX = this.frame.bounds[0];
-      const boundsY = this.frame.bounds[1];
-      const screenX = this.screen[0];
-      const screenY = this.screen[1];
-      const viewX = this.view[0];
-      const viewY = this.view[1];
-      //
-      const left = boundsX.map(from(viewX)).map(to(screenX))[1];
-      const top = boundsY.map(from(viewY)).map(to(screenY))[1];
+      const left = this.frame.bounds.x
+        .map(from(this.view.x))
+        .map(to(this.screen.x))[1];
+      const top = this.frame.bounds.y
+        .map(from(this.view.y))
+        .map(to(this.screen.y))[1];
       return {
         left: `calc(${left}px - 0.3em)`,
         top: `calc(${top}px - 0.3em)`
@@ -128,15 +125,10 @@ export default {
           display: "none"
         };
       }
-      const drawX = [...this.drawing[0]].sort();
-      const drawY = [...this.drawing[1]].sort();
-      const screenX = this.screen[0];
-      const screenY = this.screen[1];
-      const viewX = this.view[0];
-      const viewY = this.view[1];
-      //
-      const drawScreenX = drawX.map(from(viewX)).map(to(screenX));
-      const drawScreenY = drawY.map(from(viewY)).map(to(screenY));
+      const drawX = [...this.drawing.x].sort();
+      const drawY = [...this.drawing.y].sort();
+      const drawScreenX = drawX.map(from(this.view.x)).map(to(this.screen.x));
+      const drawScreenY = drawY.map(from(this.view.y)).map(to(this.screen.y));
       const width = Math.abs(ft.duration(drawScreenX));
       const height = Math.abs(ft.duration(drawScreenY));
       return {
@@ -155,20 +147,16 @@ export default {
       return this.$refs.title.clientWidth > width;
     },
     onPan(e) {
-      const toViewX = ft.to(this.view[0]);
-      const fromScreenX = ft.from(this.screen[0]);
       const deltaViewX = ft.duration(
-        [0, e.deltaX].map(fromScreenX).map(toViewX)
+        [0, e.deltaX].map(from(this.screen.x)).map(to(this.view.x))
       );
-      const toViewY = ft.to(this.view[1]);
-      const fromScreenY = ft.from(this.screen[1]);
       const deltaViewY = ft.duration(
-        [0, e.deltaY].map(fromScreenY).map(toViewY)
+        [0, e.deltaY].map(ft.from(this.screen.y)).map(ft.to(this.view.y))
       );
-      const newBounds = [
-        ft.add(this.boundsStart[0], [deltaViewX, deltaViewX]),
-        ft.add(this.boundsStart[1], [deltaViewY, deltaViewY])
-      ];
+      const newBounds = {
+        x: ft.add(this.boundsStart.x, [deltaViewX, deltaViewX]),
+        y: ft.add(this.boundsStart.y, [deltaViewY, deltaViewY])
+      };
       this.$emit("updateBounds", newBounds);
     },
     onPanStart() {
@@ -178,25 +166,25 @@ export default {
       this.boundsStart = null;
     },
     onResize(e) {
-      const startBoundsX = this.boundsStart[0];
-      const startBoundsY = this.boundsStart[1];
-      const screenX = this.screen[0];
-      const screenY = this.screen[1];
-      const viewX = this.view[0];
-      const viewY = this.view[1];
+      const boundsStart = this.boundsStart;
+      const view = this.view;
+      const parent = this.parent;
       const deltaViewX = ft.duration(
-        [0, e.deltaX].map(from(screenX)).map(to(viewX))
+        [0, e.deltaX].map(from(this.screen.x)).map(to(view.x))
       );
       const deltaViewY = ft.duration(
-        [0, e.deltaY].map(from(screenY)).map(to(viewY))
+        [0, e.deltaY].map(from(this.screen.y)).map(to(view.y))
       );
-      const xMax = this.parent ? this.parent.bounds[0][1] : Infinity;
-      const yMax = this.parent ? this.parent.bounds[1][1] : Infinity;
-      const xClamp = ft.clamp([startBoundsX[0], xMax]);
-      const yClamp = ft.clamp([startBoundsY[0], yMax]);
-      const newX = xClamp(this.boundsStart[0][1] + deltaViewX);
-      const newY = yClamp(this.boundsStart[1][1] + deltaViewY);
-      const newBounds = [[startBoundsX[0], newX], [startBoundsY[0], newY]];
+      const xMax = parent ? parent.bounds.x[1] : Infinity;
+      const yMax = parent ? parent.bounds.y[1] : Infinity;
+      const xClamp = ft.clamp([boundsStart.x[0], xMax]);
+      const yClamp = ft.clamp([boundsStart.x[0], yMax]);
+      const newX = xClamp(boundsStart.x[1] + deltaViewX);
+      const newY = yClamp(boundsStart.y[1] + deltaViewY);
+      const newBounds = {
+        x: [boundsStart.x[0], newX],
+        y: [boundsStart.y[0], newY]
+      };
       this.$emit("updateBounds", newBounds);
     },
     onResizeStart() {
@@ -206,23 +194,22 @@ export default {
       this.boundsStart = null;
     },
     onDraw(e) {
-      const x = ft.line(this.screen[0], this.view[0], e.pointers[0].clientX);
-      const y = ft.line(this.screen[1], this.view[1], e.pointers[0].clientY);
-
-      Vue.set(this.drawing[0], 1, ft.clamp(this.frame.bounds[0], x));
-      Vue.set(this.drawing[1], 1, ft.clamp(this.frame.bounds[1], y));
+      const x = ft.line(this.screen.x, this.view.x, e.pointers[0].clientX);
+      const y = ft.line(this.screen.y, this.view.y, e.pointers[0].clientY);
+      Vue.set(this.drawing.x, 1, ft.clamp(this.frame.bounds.x, x));
+      Vue.set(this.drawing.y, 1, ft.clamp(this.frame.bounds.y, y));
     },
     onDrawStart(e) {
-      const x = ft.line(this.screen[0], this.view[0], e.pointers[0].clientX);
-      const y = ft.line(this.screen[1], this.view[1], e.pointers[0].clientY);
-      Vue.set(this, "drawing", [[x, x], [y, y]]);
+      const x = ft.line(this.screen.x, this.view.x, e.pointers[0].clientX);
+      const y = ft.line(this.screen.y, this.view.y, e.pointers[0].clientY);
+      Vue.set(this, "drawing", { x: [x, x], y: [y, y] });
     },
     onDrawEnd() {
       if (this.drawing) {
-        this.$emit("spawnFrame", [
-          this.drawing[0].sort((a, b) => a - b),
-          this.drawing[1].sort((a, b) => a - b)
-        ]);
+        this.$emit("spawnFrame", {
+          x: this.drawing.x.sort((a, b) => a - b),
+          y: this.drawing.y.sort((a, b) => a - b)
+        });
       }
       this.drawing = null;
     }
