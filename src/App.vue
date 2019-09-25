@@ -104,12 +104,12 @@ export default {
           ft.clampRange(parent.bounds[1], y)
         ];
       }
-      const changeX = ft.sub(newBounds[0], originalBounds[0]);
-      const changeY = ft.sub(newBounds[1], originalBounds[1]);
+      const mapX = ft.line(originalBounds[0], newBounds[0]);
+      const mapY = ft.line(originalBounds[1], newBounds[1]);
       frame.children.forEach(id => {
         const frame = this.frames[id];
-        const newXFrame = ft.add(frame.bounds[0], changeX);
-        const newYFrame = ft.add(frame.bounds[1], changeY);
+        const newXFrame = frame.bounds[0].map(mapX);
+        const newYFrame = frame.bounds[1].map(mapY);
         this.updateBounds(id, [newXFrame, newYFrame]);
       });
       Vue.set(frame, "bounds", newBounds);
