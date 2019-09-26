@@ -10,6 +10,7 @@
       :depth="index"
       @updateBounds="updateBounds(id, $event)"
       @spawnFrame="spawnFrame(id, $event)"
+      @focus="focusFrame(id)"
       v-for="(id, index) in frameStack"
     />
   </div>
@@ -17,6 +18,8 @@
 
 <script>
 import * as ft from "froto";
+import { from, to } from "froto";
+
 import Vue from "vue";
 import Frame from "./components/Frame";
 export default {
@@ -31,7 +34,7 @@ export default {
       frames: {
         // actual implementation will need uuids, maybe urls too
         0: {
-          name: "|",
+          name: "",
           parent: null,
           children: [1],
           bounds: { x: [-20, 20], y: [-20, 20] },
@@ -79,16 +82,21 @@ export default {
     spawnFrame(parentId, bounds) {
       const id = this.nextFrameId++;
       Vue.set(this.frames, id, {
-        name: "frame",
+        name: "=",
         parent: parentId,
         children: [],
         bounds: { ...bounds },
-        hue: Math.floor(Math.random() * 360)
+        hue: (this.frames[parentId].hue + 40 + Math.random() * 60) % 360
       });
       const parent = this.frames[parentId];
       Vue.set(parent, "children", parent.children.concat(id));
     },
     onScroll(e) {
+      // const coordinate = [
+      //   to(this.view.x, from(this.screen.x, e.clientX)),
+      //   to(this.view.y, from(this.screen.y, e.clientY))
+      // ];
+      // const target = this.scanCoordinate(coordinate);
       const change = (0.05 * e.deltaY) / 100;
       const currentDurationX = ft.duration(this.view.x);
       const currentDurationY = ft.duration(this.view.y);
@@ -108,6 +116,30 @@ export default {
       );
       Vue.set(this.view, "x", newXRange);
       Vue.set(this.view, "y", newYRange);
+    },
+    focusFrame(id) {
+      const newXRange = this.frames[id].bounds.x;
+      const newYRange = this.frames[id].bounds.y;
+      const ms = 100;
+      const startTime = Date.now();
+      const xTween = ratio => [
+        to([this.view.x[0], newXRange[0]], ratio),
+        to([this.view.x[1], newXRange[1]], ratio)
+      ];
+      const yTween = ratio => [
+        to([this.view.y[0], newYRange[0]], ratio),
+        to([this.view.y[1], newYRange[1]], ratio)
+      ];
+      const update = () => {
+        const time = Date.now() - startTime;
+        const ratio = time / ms;
+        Vue.set(this.view, "x", xTween(ratio));
+        Vue.set(this.view, "y", yTween(ratio));
+        if (time < ms) {
+          requestAnimationFrame(update);
+        }
+      };
+      update();
     },
     updateBounds(id, newBounds) {
       const frame = this.frames[id];
@@ -141,6 +173,23 @@ export default {
         x: [0, this.$el.clientWidth],
         y: [0, this.$el.clientHeight]
       };
+    },
+    // detect the visible frame at a coordinate [x, y]
+    scanCoordinate([x, y], id = -1) {
+      if (id === -1) id = this.rootFrame;
+      const containsX = ft.contains(this.frames[id].bounds.x, x);
+      const containsY = ft.contains(this.frames[id].bounds.y, y);
+      if (containsX && containsY) {
+        // give children a chance to intercept because they are in front
+        if (!this.collapsedStore[id]) {
+          return this.frames[id].children.reduce((result, candidate) => {
+            const found = this.scanCoordinate([x, y], candidate);
+            return found !== undefined ? found : result;
+          }, id);
+        } else {
+          return id;
+        }
+      }
     }
   },
   computed: {

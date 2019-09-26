@@ -5,6 +5,7 @@
       v-hammer:pan="onDraw"
       v-hammer:panend="onDrawEnd"
       v-hammer:panstart="onDrawStart"
+      v-hammer:tap="onPress"
       :style="boundsStyle"
     ></div>
     <div class="drawing" :style="drawingStyle"></div>
@@ -15,7 +16,11 @@
         v-hammer:pan="onPan"
         v-hammer:panend="onPanEnd"
         v-hammer:panstart="onPanStart"
-      >{{ frame.name }}</div>
+        v-hammer:tap="onPress"
+      >
+        {{ title }}
+        <font-awesome-icon icon="arrows" v-if="!title"></font-awesome-icon>
+      </div>
     </div>
     <div
       class="resize"
@@ -48,6 +53,9 @@ export default {
     };
   },
   computed: {
+    title() {
+      return this.frame.name;
+    },
     clipPath() {
       // const textHeight = 50;
       // const textOffset = this.depth * 40;
@@ -70,7 +78,6 @@ export default {
 
       const frameColor = `hsla(${this.frame.hue}, 60%, 60%, 0.95)`;
       const frameColorBorder = `hsla(${this.frame.hue}, 60%, 60%, 0.45)`;
-      // 0 1px 1em hsla(0, 0%, 0%, 0.2)
       const border =
         this.collapsed && !this.textOverflows()
           ? `4px solid ${frameColorBorder}`
@@ -141,8 +148,11 @@ export default {
     }
   },
   methods: {
+    onPress() {
+      this.$emit("focus");
+    },
     textOverflows() {
-      if (!this.$el || !this.$refs.title) return true;
+      if (!this.$el || !this.$refs.title) return false;
       const width = parseInt(getComputedStyle(this.$el).width);
       return this.$refs.title.clientWidth > width;
     },
@@ -178,7 +188,7 @@ export default {
       const xMax = parent ? parent.bounds.x[1] : Infinity;
       const yMax = parent ? parent.bounds.y[1] : Infinity;
       const xClamp = ft.clamp([boundsStart.x[0], xMax]);
-      const yClamp = ft.clamp([boundsStart.x[0], yMax]);
+      const yClamp = ft.clamp([boundsStart.y[0], yMax]);
       const newX = xClamp(boundsStart.x[1] + deltaViewX);
       const newY = yClamp(boundsStart.y[1] + deltaViewY);
       const newBounds = {
@@ -222,9 +232,9 @@ export default {
   box-sizing: border-box;
 }
 .frame {
-  color: hsla(0, 0%, 100%, 0.7);
+  color: hsla(0, 0%, 0%, 0.3);
   text-shadow: 0px 2px 0.3em hsla(0, 0%, 100%, 0.2),
-    0px 0px 0.1em hsla(0, 0%, 100%, 0.2);
+    0px 0px 0.1em hsla(0, 0%, 0%, 0.2);
   font-weight: 900;
   font-size: 3em;
   text-align: left;
