@@ -1,13 +1,6 @@
 <template>
   <div class="frame" :class="{ collapsed: collapsed }" :style="styles">
-    <div
-      class="bounds"
-      v-hammer:pan="onDraw"
-      v-hammer:panend="onDrawEnd"
-      v-hammer:panstart="onDrawStart"
-      v-hammer:tap="onPress"
-      :style="boundsStyle"
-    ></div>
+    <div class="bounds" v-hammer:tap="onPress" :style="boundsStyle"></div>
     <div class="drawing" :style="drawingStyle"></div>
     <div class="title">
       <div
@@ -19,7 +12,9 @@
         v-hammer:tap="onPress"
       >
         {{ title }}
-        <font-awesome-icon icon="arrows" v-if="!title"></font-awesome-icon>
+        <div v-if="!title" class="drag-handle">
+          <font-awesome-icon icon="arrows-alt" />
+        </div>
       </div>
     </div>
     <div
@@ -76,7 +71,7 @@ export default {
         frame.bounds.y.map(ft.from(this.view.y)).map(normalClamp)
       );
 
-      const frameColor = `hsla(${this.frame.hue}, 60%, 60%, 0.95)`;
+      const frameColor = `hsla(${this.frame.hue}, 90%, 70%, 0.95)`;
       const frameColorBorder = `hsla(${this.frame.hue}, 60%, 60%, 0.45)`;
       const border =
         this.collapsed && !this.textOverflows()
@@ -108,7 +103,7 @@ export default {
       const boxShadow =
         `0 1em 1em -0.5em hsla(${this.frame.hue}, 60%, 20%, 0.2),` +
         `0 2em 2em -1em hsla(${this.frame.hue}, 60%, 20%, 0.3)`;
-      const background = `hsla(${this.frame.hue}, 60%, 60%, 0.95)`;
+      const background = `hsla(${this.frame.hue}, 90%, 70%, 0.95)`;
       return {
         boxShadow,
         background
@@ -122,8 +117,8 @@ export default {
         .map(from(this.view.y))
         .map(to(this.screen.y))[1];
       return {
-        left: `calc(${left}px - 0.3em)`,
-        top: `calc(${top}px - 0.3em)`
+        left: `calc(${left}px - 0.9em)`,
+        top: `calc(${top}px - 0.9em)`
       };
     },
     drawingStyle() {
@@ -170,9 +165,11 @@ export default {
       this.$emit("updateBounds", newBounds);
     },
     onPanStart() {
+      this.$emit("moveStart");
       this.boundsStart = this.frame.bounds;
     },
     onPanEnd() {
+      this.$emit("moveEnd");
       this.boundsStart = null;
     },
     onResize(e) {
@@ -198,31 +195,33 @@ export default {
       this.$emit("updateBounds", newBounds);
     },
     onResizeStart() {
+      this.$emit("moveStart");
       this.boundsStart = this.frame.bounds;
     },
     onResizeEnd() {
+      this.$emit("moveEnd");
       this.boundsStart = null;
-    },
-    onDraw(e) {
-      const x = ft.line(this.screen.x, this.view.x, e.pointers[0].clientX);
-      const y = ft.line(this.screen.y, this.view.y, e.pointers[0].clientY);
-      Vue.set(this.drawing.x, 1, ft.clamp(this.frame.bounds.x, x));
-      Vue.set(this.drawing.y, 1, ft.clamp(this.frame.bounds.y, y));
-    },
-    onDrawStart(e) {
-      const x = ft.line(this.screen.x, this.view.x, e.pointers[0].clientX);
-      const y = ft.line(this.screen.y, this.view.y, e.pointers[0].clientY);
-      Vue.set(this, "drawing", { x: [x, x], y: [y, y] });
-    },
-    onDrawEnd() {
-      if (this.drawing) {
-        this.$emit("spawnFrame", {
-          x: this.drawing.x.sort((a, b) => a - b),
-          y: this.drawing.y.sort((a, b) => a - b)
-        });
-      }
-      this.drawing = null;
     }
+    // onDraw(e) {
+    //   const x = ft.line(this.screen.x, this.view.x, e.pointers[0].clientX);
+    //   const y = ft.line(this.screen.y, this.view.y, e.pointers[0].clientY);
+    //   Vue.set(this.drawing.x, 1, ft.clamp(this.frame.bounds.x, x));
+    //   Vue.set(this.drawing.y, 1, ft.clamp(this.frame.bounds.y, y));
+    // },
+    // onDrawStart(e) {
+    //   const x = ft.line(this.screen.x, this.view.x, e.pointers[0].clientX);
+    //   const y = ft.line(this.screen.y, this.view.y, e.pointers[0].clientY);
+    //   Vue.set(this, "drawing", { x: [x, x], y: [y, y] });
+    // },
+    // onDrawEnd() {
+    //   if (this.drawing) {
+    //     this.$emit("spawnFrame", {
+    //       x: this.drawing.x.sort((a, b) => a - b),
+    //       y: this.drawing.y.sort((a, b) => a - b)
+    //     });
+    //   }
+    //   this.drawing = null;
+    // }
   }
 };
 </script>
@@ -236,7 +235,7 @@ export default {
   text-shadow: 0px 2px 0.3em hsla(0, 0%, 100%, 0.2),
     0px 0px 0.1em hsla(0, 0%, 0%, 0.2);
   font-weight: 900;
-  font-size: 3em;
+  font-size: 2em;
   text-align: left;
   position: absolute;
 }
@@ -286,13 +285,13 @@ export default {
 
 .resize {
   position: fixed;
-  width: 0.3em;
+  width: 0.9em;
   cursor: grab;
 }
 .resize-dot {
-  margin: 0.1em;
-  width: 0.1em;
-  height: 0.1em;
+  margin: 0.3em;
+  width: 0.3em;
+  height: 0.3em;
   border-radius: 1em;
   background: hsla(0, 0%, 100%, 0.3);
   transition: opacity 0.1s;
@@ -309,5 +308,10 @@ export default {
 .drawing {
   position: fixed;
   z-index: 11;
+}
+
+.drag-handle {
+  font-size: 0.5em;
+  padding: 0.1em;
 }
 </style>

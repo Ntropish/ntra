@@ -1,5 +1,15 @@
 <template>
-  <div id="app" @mousewheel="onScroll">
+  <div
+    id="app"
+    @mousewheel="onScroll"
+    v-hammer:pinchend="onPinchEnd"
+    v-hammer:pinchstart="onPinchStart"
+    v-hammer:pinch="onPinch"
+    v-hammer:panend="onPanEnd"
+    v-hammer:panstart="onPanStart"
+    v-hammer:pan="onPan"
+    v-hammer:swipe="onSwipe"
+  >
     <frame
       :key="id"
       :collapsed="collapsedStore[id]"
@@ -11,6 +21,8 @@
       @updateBounds="updateBounds(id, $event)"
       @spawnFrame="spawnFrame(id, $event)"
       @focus="focusFrame(id)"
+      @moveStart="movingFrame = true"
+      @moveEnd="movingFrame = false"
       v-for="(id, index) in frameStack"
     />
   </div>
@@ -29,6 +41,7 @@ export default {
   },
   data() {
     return {
+      movingFrame: false,
       view: { x: [-21, 21], y: [-21, 21] },
       screen: { x: [0, 0], y: [0, 0] },
       frames: {
@@ -68,7 +81,8 @@ export default {
       },
       nextFrameId: 4,
       rootFrame: 0,
-      collapsedStore: {}
+      collapsedStore: {},
+      viewPinchStart: null
     };
   },
   mounted() {
@@ -90,6 +104,77 @@ export default {
       });
       const parent = this.frames[parentId];
       Vue.set(parent, "children", parent.children.concat(id));
+    },
+    onPinchStart() {
+      this.viewPinchStart = { ...this.view };
+    },
+    onPinchEnd() {
+      this.viewPinchStart = null;
+    },
+    onPinch(e) {
+      const { center, scale } = e;
+      const xOrigin = ft.from(this.screen.x, center.x);
+      const yOrigin = ft.from(this.screen.y, center.y);
+
+      const newXRange = ft.scale(1 / scale, xOrigin, this.viewPinchStart.x);
+      const newYRange = ft.scale(1 / scale, yOrigin, this.viewPinchStart.y);
+
+      Vue.set(this.view, "x", newXRange);
+      Vue.set(this.view, "y", newYRange);
+    },
+    onPanStart() {
+      setTimeout(() => {
+        this.viewPanStart = { ...this.view };
+      }, 10);
+    },
+    onPanEnd() {
+      this.viewPanStart = null;
+    },
+    onPan(e) {
+      if (this.movingFrame) {
+        // cancel current pan because the frame is moving. If
+        // the pan is just mitigated and not canceled then events
+        // at the end may go through and pan the view after the user
+        // only wanted to move a frame
+        this.viewPanStart = null;
+      }
+      if (!this.viewPanStart) return;
+
+      const deltaX = ft.duration(this.view.x) * from(this.screen.x, e.deltaX);
+      const deltaY = ft.duration(this.view.y) * from(this.screen.y, e.deltaY);
+
+      const newXRange = ft.sub(this.viewPanStart.x, [deltaX, deltaX]);
+      const newYRange = ft.sub(this.viewPanStart.y, [deltaY, deltaY]);
+
+      Vue.set(this.view, "x", newXRange);
+      Vue.set(this.view, "y", newYRange);
+    },
+    onSwipe(e) {
+      const xChange = from(this.screen.x, e.velocityX * 1000);
+      const yChange = from(this.screen.y, e.velocityY * 1000);
+      const newXRange = ft.sub(this.view.x, [xChange, xChange]);
+      const newYRange = ft.sub(this.view.y, [yChange, yChange]);
+      const ms = 100;
+      const startTime = Date.now();
+      const xTween = ratio => [
+        to([this.view.x[0], newXRange[0]], ratio),
+        to([this.view.x[1], newXRange[1]], ratio)
+      ];
+      const yTween = ratio => [
+        to([this.view.y[0], newYRange[0]], ratio),
+        to([this.view.y[1], newYRange[1]], ratio)
+      ];
+      const update = () => {
+        const time = Date.now() - startTime;
+        const ratio = time / ms;
+        Vue.set(this.view, "x", xTween(ratio));
+        Vue.set(this.view, "y", yTween(ratio));
+        console.log(this.view);
+        if (time < ms) {
+          requestAnimationFrame(update);
+        }
+      };
+      update();
     },
     onScroll(e) {
       // const coordinate = [
