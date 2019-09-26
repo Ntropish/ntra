@@ -22,7 +22,7 @@
       @spawnFrame="spawnFrame(id, $event)"
       @focus="focusFrame(id)"
       @moveStart="movingFrame = true"
-      @moveEnd="movingFrame = false"
+      @moveEnd="onMoveEnd"
       v-for="(id, index) in frameStack"
     />
   </div>
@@ -96,11 +96,11 @@ export default {
     spawnFrame(parentId, bounds) {
       const id = this.nextFrameId++;
       Vue.set(this.frames, id, {
-        name: "=",
+        name: "",
         parent: parentId,
         children: [],
         bounds: { ...bounds },
-        hue: (this.frames[parentId].hue + 40 + Math.random() * 60) % 360
+        hue: (this.frames[parentId].hue + 30 + Math.random() * 90) % 360
       });
       const parent = this.frames[parentId];
       Vue.set(parent, "children", parent.children.concat(id));
@@ -112,6 +112,7 @@ export default {
       this.viewPinchStart = null;
     },
     onPinch(e) {
+      // TODO: New pinch will keep fingers stationary in the view
       const { center, scale } = e;
       const xOrigin = ft.from(this.screen.x, center.x);
       const yOrigin = ft.from(this.screen.y, center.y);
@@ -150,26 +151,33 @@ export default {
       Vue.set(this.view, "y", newYRange);
     },
     onSwipe(e) {
-      const xChange = from(this.screen.x, e.velocityX * 1000);
-      const yChange = from(this.screen.y, e.velocityY * 1000);
+      if (this.movingFrame) return;
+      const xChange =
+        to(this.view.x, from(this.screen.x, e.velocityX * 100)) -
+        to(this.view.x, 0);
+      const yChange =
+        to(this.view.y, from(this.screen.y, e.velocityY * 100)) -
+        to(this.view.y, 0);
       const newXRange = ft.sub(this.view.x, [xChange, xChange]);
       const newYRange = ft.sub(this.view.y, [yChange, yChange]);
-      const ms = 100;
+      const ms = 300;
       const startTime = Date.now();
+      function ease(r) {
+        return r ** 1;
+      }
       const xTween = ratio => [
-        to([this.view.x[0], newXRange[0]], ratio),
-        to([this.view.x[1], newXRange[1]], ratio)
+        to([this.view.x[0], newXRange[0]], ease(ratio)),
+        to([this.view.x[1], newXRange[1]], ease(ratio))
       ];
       const yTween = ratio => [
-        to([this.view.y[0], newYRange[0]], ratio),
-        to([this.view.y[1], newYRange[1]], ratio)
+        to([this.view.y[0], newYRange[0]], ease(ratio)),
+        to([this.view.y[1], newYRange[1]], ease(ratio))
       ];
       const update = () => {
         const time = Date.now() - startTime;
         const ratio = time / ms;
         Vue.set(this.view, "x", xTween(ratio));
         Vue.set(this.view, "y", yTween(ratio));
-        console.log(this.view);
         if (time < ms) {
           requestAnimationFrame(update);
         }
@@ -275,6 +283,9 @@ export default {
           return id;
         }
       }
+    },
+    onMoveEnd() {
+      setTimeout(() => (this.movingFrame = false), 10);
     }
   },
   computed: {

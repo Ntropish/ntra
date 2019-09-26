@@ -1,6 +1,6 @@
 <template>
   <div class="frame" :class="{ collapsed: collapsed }" :style="styles">
-    <div class="bounds" v-hammer:tap="onPress" :style="boundsStyle"></div>
+    <div class="bounds" v-hammer:tap="onBoundsTap" :style="boundsStyle"></div>
     <div class="drawing" :style="drawingStyle"></div>
     <div class="title">
       <div
@@ -9,7 +9,7 @@
         v-hammer:pan="onPan"
         v-hammer:panend="onPanEnd"
         v-hammer:panstart="onPanStart"
-        v-hammer:tap="onPress"
+        v-hammer:tap="onTap"
       >
         {{ title }}
         <div v-if="!title" class="drag-handle">
@@ -22,6 +22,7 @@
       v-hammer:pan="onResize"
       v-hammer:panstart="onResizeStart"
       v-hammer:panend="onResizeEnd"
+      v-hammer:tap="onTap"
       :style="resizeStyle"
     >
       <div class="resize-dot"></div>
@@ -37,14 +38,14 @@
 <script>
 import * as ft from "froto";
 import { from, to } from "froto";
-import Vue from "vue";
 export default {
   name: "frame",
   props: ["view", "frame", "screen", "collapsed", "parent", "depth"],
   data() {
     return {
       boundsStart: null,
-      drawing: null
+      drawing: null,
+      boundsTapTimer: null
     };
   },
   computed: {
@@ -143,8 +144,30 @@ export default {
     }
   },
   methods: {
-    onPress() {
+    onTap() {
       this.$emit("focus");
+    },
+    onBoundsTap(e) {
+      if (this.boundsTapTimer) {
+        clearTimeout(this.boundsTapTimer);
+        this.boundsTapTimer = null;
+        const x = to(this.view.x, from(this.screen.x, e.pointers[0].clientX));
+        const y = to(this.view.y, from(this.screen.y, e.pointers[0].clientY));
+        const xRadius = ft.duration(this.frame.bounds.x) / 9;
+        const yRadius = ft.duration(this.frame.bounds.y) / 9;
+        const xRange = [x - xRadius, x + xRadius];
+        const yRange = [y - yRadius, y + yRadius];
+        const bounds = {
+          x: ft.clampRange(this.frame.bounds.x, xRange),
+          y: ft.clampRange(this.frame.bounds.y, yRange)
+        };
+        this.$emit("spawnFrame", bounds);
+      } else {
+        this.boundsTapTimer = setTimeout(() => {
+          this.$emit("focus");
+          this.boundsTapTimer = null;
+        }, 300);
+      }
     },
     textOverflows() {
       if (!this.$el || !this.$refs.title) return false;
