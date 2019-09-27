@@ -1,4 +1,4 @@
-# intra
+# ntra
 
 ## Project setup
 ```
