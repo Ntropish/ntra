@@ -2,30 +2,24 @@
   <div class="frame" :class="{ collapsed: collapsed }" :style="styles">
     <div class="bounds" v-hammer:tap="onBoundsTap" :style="boundsStyle"></div>
     <div class="drawing" :style="drawingStyle"></div>
-    <div class="title">
-      <div
-        ref="title"
-        class="title-offset"
-        v-hammer:pan="onPan"
-        v-hammer:panend="onPanEnd"
-        v-hammer:panstart="onPanStart"
-        v-hammer:tap="onTap"
-      >
-        {{ title }}
-        <div v-if="!title" class="drag-handle">
-          <font-awesome-icon icon="arrows-alt" />
-        </div>
-      </div>
+    <div
+      class="north-west"
+      v-hammer:pan="onNorthWestPan"
+      v-hammer:panend="onNorthWestPanEnd"
+      v-hammer:panstart="onNorthWestPanStart"
+      v-hammer:tap="onTap"
+    >
+      <font-awesome-icon icon="ellipsis-v" />
     </div>
     <div
-      class="resize"
-      v-hammer:pan="onResize"
-      v-hammer:panstart="onResizeStart"
-      v-hammer:panend="onResizeEnd"
+      class="south-east"
+      v-hammer:pan="onSouthEastPan"
+      v-hammer:panstart="onSouthEastPanStart"
+      v-hammer:panend="onSouthEastPanEnd"
       v-hammer:tap="onTap"
-      :style="resizeStyle"
+      :style="southEastStyle"
     >
-      <div class="resize-dot"></div>
+      <font-awesome-icon icon="ellipsis-v" />
     </div>
     <!-- <svg>
       <clipPath id="clipping">
@@ -74,13 +68,8 @@ export default {
 
       const frameColor = `hsla(${this.frame.hue}, 90%, 70%, 0.95)`;
       const frameColorBorder = `hsla(${this.frame.hue}, 60%, 60%, 0.45)`;
-      const border =
-        this.collapsed && !this.textOverflows()
-          ? `4px solid ${frameColorBorder}`
-          : `none`;
 
       const result = {
-        border,
         // but top and left are 0-1
         top: normalClamp(top) * 100 + "%",
         left: normalClamp(left) * 100 + "%",
@@ -88,15 +77,9 @@ export default {
         height: height * 100 + "%"
       };
 
-      if (this.collapsed) {
-        result.color = frameColor;
-        result.textShadow = `0 0 4px hsla(0, 0%, 100%, 0.1),
-                             0px 0px 8px ${frameColorBorder}`;
-      } else {
-        result.boxShadow =
-          `0 1em 1em -0.5em hsla(${this.frame.hue}, 60%, 20%, 0.2),` +
-          `0 2em 2em -1em hsla(${this.frame.hue}, 60%, 20%, 0.3)`;
-      }
+      result.boxShadow =
+        `0 1em 1em -0.5em hsla(${this.frame.hue}, 60%, 20%, 0.2),` +
+        `0 2em 2em -1em hsla(${this.frame.hue}, 60%, 20%, 0.3)`;
 
       return result;
     },
@@ -110,7 +93,7 @@ export default {
         background
       };
     },
-    resizeStyle() {
+    southEastStyle() {
       const left = this.frame.bounds.x
         .map(from(this.view.x))
         .map(to(this.screen.x))[1];
@@ -118,8 +101,8 @@ export default {
         .map(from(this.view.y))
         .map(to(this.screen.y))[1];
       return {
-        left: `calc(${left}px - 0.9em)`,
-        top: `calc(${top}px - 0.9em)`
+        left: `calc(${left}px - 3em)`,
+        top: `calc(${top}px - 3em)`
       };
     },
     drawingStyle() {
@@ -169,33 +152,40 @@ export default {
         }, 300);
       }
     },
-    textOverflows() {
-      if (!this.$el || !this.$refs.title) return false;
-      const width = parseInt(getComputedStyle(this.$el).width);
-      return this.$refs.title.clientWidth > width;
-    },
-    onPan(e) {
+    onNorthWestPan(e) {
+      const view = this.view;
+      const boundsStart = this.boundsStart;
+      const xBlock = ft.duration(view.x) / 100;
+      const yBlock = ft.duration(view.y) / 100;
+      const parent = this.parent;
       const deltaViewX = ft.duration(
-        [0, e.deltaX].map(from(this.screen.x)).map(to(this.view.x))
+        [0, e.deltaX].map(from(this.screen.x)).map(to(view.x))
       );
       const deltaViewY = ft.duration(
-        [0, e.deltaY].map(ft.from(this.screen.y)).map(ft.to(this.view.y))
+        [0, e.deltaY].map(from(this.screen.y)).map(to(view.y))
       );
+      const xMin = parent ? parent.bounds.x[0] : Infinity;
+      const yMin = parent ? parent.bounds.y[0] : Infinity;
+      const xClamp = ft.clamp([xMin, boundsStart.x[1] - xBlock]);
+      const yClamp = ft.clamp([yMin, boundsStart.y[1] - yBlock]);
+      const newX = xClamp(boundsStart.x[0] + deltaViewX);
+      const newY = yClamp(boundsStart.y[0] + deltaViewY);
       const newBounds = {
-        x: ft.add(this.boundsStart.x, [deltaViewX, deltaViewX]),
-        y: ft.add(this.boundsStart.y, [deltaViewY, deltaViewY])
+        x: [newX, boundsStart.x[1]],
+        y: [newY, boundsStart.y[1]]
       };
+
       this.$emit("updateBounds", newBounds);
     },
-    onPanStart() {
+    onNorthWestPanStart() {
       this.$emit("moveStart");
       this.boundsStart = this.frame.bounds;
     },
-    onPanEnd() {
+    onNorthWestPanEnd() {
       this.$emit("moveEnd");
       this.boundsStart = null;
     },
-    onResize(e) {
+    onSouthEastPan(e) {
       const boundsStart = this.boundsStart;
       const view = this.view;
       const parent = this.parent;
@@ -217,11 +207,11 @@ export default {
       };
       this.$emit("updateBounds", newBounds);
     },
-    onResizeStart() {
+    onSouthEastPanStart() {
       this.$emit("moveStart");
       this.boundsStart = this.frame.bounds;
     },
-    onResizeEnd() {
+    onSouthEastPanEnd() {
       this.$emit("moveEnd");
       this.boundsStart = null;
     }
@@ -254,7 +244,7 @@ export default {
   box-sizing: border-box;
 }
 .frame {
-  color: hsla(0, 0%, 0%, 0.3);
+  color: hsla(0, 0%, 0%, 0.2);
   text-shadow: 0px 2px 0.3em hsla(0, 0%, 100%, 0.2),
     0px 0px 0.1em hsla(0, 0%, 0%, 0.2);
   font-weight: 900;
@@ -281,51 +271,30 @@ export default {
   left: 0;
   transition: opacity 0.1s;
 }
-.frame.collapsed > .bounds {
-  opacity: 0;
-}
 
-.title {
+.north-west {
   position: absolute;
-  /* left: 50%; */
-  line-height: 1em;
-}
-
-.title-offset {
+  font-size: 0.5em;
+  line-height: 3em;
+  width: 3em;
+  height: 3em;
   cursor: grab;
+  text-align: center;
 }
 
-.frame.collapsed > .title {
-  left: 50%;
-  height: 1em;
-  top: calc(50% - 0.5em);
+.frame.collapsed .north-west {
+}
+.frame.collapsed .south-east {
 }
 
-.frame.collapsed .title-offset {
-  position: relative;
-  right: 50%;
-}
-
-.resize {
+.south-east {
   position: fixed;
-  width: 0.9em;
   cursor: grab;
-}
-.resize-dot {
-  margin: 0.3em;
-  width: 0.3em;
-  height: 0.3em;
-  border-radius: 1em;
-  background: hsla(0, 0%, 100%, 0.3);
-  transition: opacity 0.1s;
-  opacity: 0;
-}
-
-.frame:hover .resize-dot {
-  opacity: 1;
-}
-.resize:hover .resize-dot {
-  background: hsla(0, 0%, 100%, 0.7);
+  text-align: center;
+  font-size: 0.5em;
+  line-height: 3em;
+  width: 3em;
+  height: 3em;
 }
 
 .drawing {
