@@ -1,7 +1,7 @@
 {
   "name": "ntra",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "scripts": {
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
@@ -14,7 +14,8 @@
     "@fortawesome/vue-fontawesome": "^0.1.5",
     "core-js": "^2.6.5",
     "vue": "^2.6.10",
-    "vue2-hammer": "^2.1.2"
+    "vue2-hammer": "^2.1.2",
+    "vuetify": "^2.0.0"
   },
   "devDependencies": {
     "@vue/cli-plugin-babel": "^3.11.0",
@@ -23,8 +24,12 @@
     "babel-eslint": "^10.0.1",
     "eslint": "^5.16.0",
     "eslint-plugin-vue": "^5.0.0",
+    "sass": "^1.17.4",
+    "sass-loader": "^7.1.0",
     "vue-cli-plugin-fontawesome": "^0.2.0",
-    "vue-template-compiler": "^2.6.10"
+    "vue-cli-plugin-vuetify": "^0.6.3",
+    "vue-template-compiler": "^2.6.10",
+    "vuetify-loader": "^1.2.2"
   },
   "eslintConfig": {
     "root": true,
