@@ -10,82 +10,60 @@
     v-hammer:pan="onPan"
     v-hammer:swipe="onSwipe"
   >
-    <frame
-      :key="id"
-      :collapsed="collapsedStore[id]"
-      :frame="frames[id]"
-      :parent="getFrameParent(id)"
-      :view="view"
-      :screen="screen"
-      :depth="index"
-      @updateBounds="updateBounds(id, $event)"
-      @spawnFrame="spawnFrame(id, $event)"
-      @focus="focusFrame(id)"
-      @moveStart="movingFrame = true"
-      @moveEnd="onMoveEnd"
-      v-for="(id, index) in frameStack"
-    />
+    <navigating-mode v-if="mode === 'navigating'" />
+    <wiring-mode v-if="mode === 'wiring'" />
   </div>
 </template>
 
 <script>
 import * as ft from "froto";
-import { from, to } from "froto";
-
+import { from } from "froto";
 import Vue from "vue";
-import Frame from "./components/Frame";
+import WiringMode from "./components/WiringMode";
+import NavigatingMode from "./components/NavigatingMode";
 export default {
   name: "app",
   components: {
-    Frame
+    NavigatingMode,
+    WiringMode
   },
   data() {
     return {
+      mode: "navigating",
       movingFrame: false,
-      view: { x: [-21, 21], y: [-21, 21] },
-      screen: { x: [0, 0], y: [0, 0] },
-      frames: {
-        // actual implementation will need uuids, maybe urls too
-        0: {
-          name: "",
-          parent: null,
-          children: [1],
-          bounds: { x: [-20, 20], y: [-20, 20] },
-          hue: 280
-          // optional frame properties:
-          // type: null // default/null type is just a basic frame
-          // tags: [] // searchable strings for users to locate frames
-          // data: {} // storage for details about this node
-        },
-        1: {
-          name: "right",
-          parent: 0,
-          children: [2, 3],
-          bounds: { x: [-10, 17], y: [-17, 17] },
-          hue: 80
-        },
-        2: {
-          name: "cornerizer",
-          parent: 1,
-          children: [],
-          bounds: { x: [-9, 0], y: [-10, 0] },
-          hue: 160
-        },
-        3: {
-          name: "formalizer",
-          parent: 1,
-          children: [],
-          bounds: { x: [1, 16], y: [-5, 16] },
-          hue: 190
-        }
-      },
-      nextFrameId: 4,
-      rootFrame: 0,
       collapsedStore: {},
       viewPinchStart: null
     };
   },
   mounted() {
+    // 0: {
+    //   parent: null,
+    //   children: [1],
+    //   bounds: { x: [-20, 20], y: [-20, 20] },
+    //   hue: 280,
+    //   // optional frame properties:
+    //   // type: null // default/null type is just a basic frame
+    //   // tags: [] // searchable strings for users to locate frames
+    //   // data: {} // storage for details about this node
+    // },
+    // 1: {
+    //   parent: 0,
+    //   children: [2, 3],
+    //   bounds: { x: [-10, 17], y: [-17, 17] },
+    //   hue: 80,
+    // },
+    // 2: {
+    //   parent: 1,
+    //   children: [],
+    //   bounds: { x: [-9, 0], y: [-10, 0] },
+    //   hue: 160,
+    // },
+    // 3: {
+    //   parent: 1,
+    //   children: [],
+    //   bounds: { x: [1, 16], y: [-5, 16] },
+    //   hue: 190,
+    // },
     this.updateSize();
     window.addEventListener("resize", this.updateSize);
   },
@@ -93,18 +71,6 @@ export default {
     window.removeEventListener("resize", this.updateSize);
   },
   methods: {
-    spawnFrame(parentId, bounds) {
-      const id = this.nextFrameId++;
-      Vue.set(this.frames, id, {
-        name: "",
-        parent: parentId,
-        children: [],
-        bounds: { ...bounds },
-        hue: (this.frames[parentId].hue + 30 + Math.random() * 90) % 360
-      });
-      const parent = this.frames[parentId];
-      Vue.set(parent, "children", parent.children.concat(id));
-    },
     onPinchStart() {
       this.viewPinchStart = { ...this.view };
     },
@@ -117,11 +83,10 @@ export default {
       const xOrigin = ft.from(this.screen.x, center.x);
       const yOrigin = ft.from(this.screen.y, center.y);
 
-      const newXRange = ft.scale(1 / scale, xOrigin, this.viewPinchStart.x);
-      const newYRange = ft.scale(1 / scale, yOrigin, this.viewPinchStart.y);
+      const x = ft.scale(1 / scale, xOrigin, this.viewPinchStart.x);
+      const y = ft.scale(1 / scale, yOrigin, this.viewPinchStart.y);
 
-      Vue.set(this.view, "x", newXRange);
-      Vue.set(this.view, "y", newYRange);
+      this.$store.setView({ x, y });
     },
     onPanStart() {
       setTimeout(() => {
@@ -143,120 +108,24 @@ export default {
 
       const deltaX = ft.duration(this.view.x) * from(this.screen.x, e.deltaX);
       const deltaY = ft.duration(this.view.y) * from(this.screen.y, e.deltaY);
+      const x = ft.sub(this.viewPanStart.x, [deltaX, deltaX]);
+      const y = ft.sub(this.viewPanStart.y, [deltaY, deltaY]);
 
-      const newXRange = ft.sub(this.viewPanStart.x, [deltaX, deltaX]);
-      const newYRange = ft.sub(this.viewPanStart.y, [deltaY, deltaY]);
-
-      Vue.set(this.view, "x", newXRange);
-      Vue.set(this.view, "y", newYRange);
+      this.$store.setView({ x, y });
     },
     onSwipe(e) {
       if (this.movingFrame) return;
-      const xChange =
-        to(this.view.x, from(this.screen.x, e.velocityX * 100)) -
-        to(this.view.x, 0);
-      const yChange =
-        to(this.view.y, from(this.screen.y, e.velocityY * 100)) -
-        to(this.view.y, 0);
-      const newXRange = ft.sub(this.view.x, [xChange, xChange]);
-      const newYRange = ft.sub(this.view.y, [yChange, yChange]);
-      const ms = 300;
-      const startTime = Date.now();
-      function ease(r) {
-        return r ** 1;
-      }
-      const xTween = ratio => [
-        to([this.view.x[0], newXRange[0]], ease(ratio)),
-        to([this.view.x[1], newXRange[1]], ease(ratio))
-      ];
-      const yTween = ratio => [
-        to([this.view.y[0], newYRange[0]], ease(ratio)),
-        to([this.view.y[1], newYRange[1]], ease(ratio))
-      ];
-      const update = () => {
-        const time = Date.now() - startTime;
-        const ratio = time / ms;
-        Vue.set(this.view, "x", xTween(ratio));
-        Vue.set(this.view, "y", yTween(ratio));
-        if (time < ms) {
-          requestAnimationFrame(update);
-        }
-      };
-      update();
+      this.$store.swipe(e.velocityX, e.velocityY);
     },
     onScroll(e) {
-      // const coordinate = [
-      //   to(this.view.x, from(this.screen.x, e.clientX)),
-      //   to(this.view.y, from(this.screen.y, e.clientY))
-      // ];
-      // const target = this.scanCoordinate(coordinate);
       const change = (0.05 * e.deltaY) / 100;
       const currentDurationX = ft.duration(this.view.x);
       const currentDurationY = ft.duration(this.view.y);
       const xOrigin = ft.from(this.screen.x, e.clientX);
       const yOrigin = ft.from(this.screen.y, e.clientY);
-
-      const newXRange = ft.grow(
-        currentDurationX * change,
-        xOrigin,
-        this.view.x
-      );
-
-      const newYRange = ft.grow(
-        currentDurationY * change,
-        yOrigin,
-        this.view.y
-      );
-      Vue.set(this.view, "x", newXRange);
-      Vue.set(this.view, "y", newYRange);
-    },
-    focusFrame(id) {
-      const newXRange = this.frames[id].bounds.x;
-      const newYRange = this.frames[id].bounds.y;
-      const ms = 100;
-      const startTime = Date.now();
-      const xTween = ratio => [
-        to([this.view.x[0], newXRange[0]], ratio),
-        to([this.view.x[1], newXRange[1]], ratio)
-      ];
-      const yTween = ratio => [
-        to([this.view.y[0], newYRange[0]], ratio),
-        to([this.view.y[1], newYRange[1]], ratio)
-      ];
-      const update = () => {
-        const time = Date.now() - startTime;
-        const ratio = time / ms;
-        Vue.set(this.view, "x", xTween(ratio));
-        Vue.set(this.view, "y", yTween(ratio));
-        if (time < ms) {
-          requestAnimationFrame(update);
-        }
-      };
-      update();
-    },
-    updateBounds(id, newBounds) {
-      const frame = this.frames[id];
-      const originalBounds = frame.bounds;
-      const parent = this.frames[frame.parent];
-      if (parent) {
-        // parent will be null for the root node but
-        // all others need to be clamped down
-        newBounds = {
-          x: ft.clampRange(parent.bounds.x, newBounds.x),
-          y: ft.clampRange(parent.bounds.y, newBounds.y)
-        };
-      }
-      // these convert from the previous bounds space to the equivalent
-      // in the new bounds space
-      const mapX = ft.line(originalBounds.x, newBounds.x);
-      const mapY = ft.line(originalBounds.y, newBounds.y);
-      frame.children.forEach(id => {
-        const frame = this.frames[id];
-        const x = frame.bounds.x.map(mapX);
-        const y = frame.bounds.y.map(mapY);
-        this.updateBounds(id, { x, y });
-      });
-      Vue.set(frame, "bounds", newBounds);
+      const x = ft.grow(currentDurationX * change, xOrigin, this.view.x);
+      const y = ft.grow(currentDurationY * change, yOrigin, this.view.y);
+      this.$store.setView({ x, y });
     },
     getFrameParent(id) {
       return (this.frames[id] && this.frames[this.frames[id].parent]) || null;
@@ -312,6 +181,9 @@ export default {
       };
       scanFrame(this.rootFrame);
       return result;
+    },
+    view() {
+      return this.$store.state.view;
     }
   }
 };

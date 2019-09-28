@@ -22,11 +22,6 @@
     >
       <font-awesome-icon icon="ellipsis-v" />
     </div>
-    <!-- <svg>
-      <clipPath id="clipping">
-        <polygon points="" />
-      </clipPath>
-    </svg>-->
   </div>
 </template>
 
@@ -46,12 +41,6 @@ export default {
   computed: {
     title() {
       return this.frame.name;
-    },
-    clipPath() {
-      // const textHeight = 50;
-      // const textOffset = this.depth * 40;
-      return "";
-      // return `0,${textHeight} ${textOffset},${textHeight}, ${textOffset},0 ${}`
     },
     styles() {
       const normalClamp = ft.clamp([0, 1]);
