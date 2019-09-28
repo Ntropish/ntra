@@ -1,24 +1,21 @@
 <template>
   <div class="frame" :style="styles">
     <div class="bounds" v-hammer:tap="onBoundsTap" :style="boundsStyle"></div>
-    <div class="drawing" :style="drawingStyle"></div>
     <div
       class="north-west"
       v-hammer:pan="onNorthWestPan"
-      v-hammer:panend="onNorthWestPanEnd"
-      v-hammer:panstart="onNorthWestPanStart"
+      v-hammer:panend="panEnd"
+      v-hammer:panstart="panStart"
       v-hammer:tap="onTap"
-      :style="northWestStyle"
     >
       <font-awesome-icon icon="ellipsis-v" />
     </div>
     <div
       class="south-east"
       v-hammer:pan="onSouthEastPan"
-      v-hammer:panstart="onSouthEastPanStart"
-      v-hammer:panend="onSouthEastPanEnd"
+      v-hammer:panstart="panStart"
+      v-hammer:panend="panEnd"
       v-hammer:tap="onTap"
-      :style="southEastStyle"
     >
       <font-awesome-icon icon="ellipsis-v" />
     </div>
@@ -30,7 +27,7 @@ import * as ft from "froto";
 import { from, to } from "froto";
 export default {
   name: "frame",
-  props: ["frame", "screen"],
+  props: ["frameId", "screen"],
   data() {
     return {
       boundsStart: null,
@@ -39,6 +36,12 @@ export default {
     };
   },
   computed: {
+    frame() {
+      return this.$store.state.frames[this.frameId];
+    },
+    parent() {
+      return this.$store.state.frames[this.frame.parent];
+    },
     view() {
       return this.$store.state.view;
     },
@@ -76,35 +79,8 @@ export default {
       return result;
     },
     boundsStyle() {
-      const background = `hsla(${this.frame.hue}, 90%, 70%, 0.95)`;
       return {
-        background
-      };
-    },
-    southEastStyle() {
-      return {};
-    },
-    northWestStyle() {
-      return {};
-    },
-    drawingStyle() {
-      if (!this.drawing) {
-        return {
-          display: "none"
-        };
-      }
-      const drawX = [...this.drawing.x].sort();
-      const drawY = [...this.drawing.y].sort();
-      const drawScreenX = drawX.map(from(this.view.x)).map(to(this.screen.x));
-      const drawScreenY = drawY.map(from(this.view.y)).map(to(this.screen.y));
-      const width = Math.abs(ft.duration(drawScreenX));
-      const height = Math.abs(ft.duration(drawScreenY));
-      return {
-        background: "hsla(0, 0%, 100%, 0.6)",
-        left: Math.min(...drawScreenX) + "px",
-        top: Math.min(...drawScreenY) + "px",
-        height: height + "px",
-        width: width + "px"
+        background: `hsla(${this.frame.hue}, 90%, 70%, 0.95)`
       };
     }
   },
@@ -134,6 +110,14 @@ export default {
         }, 300);
       }
     },
+    panStart() {
+      this.$emit("move-start");
+      this.boundsStart = this.frame.bounds;
+    },
+    panEnd() {
+      this.$emit("move-end");
+      this.boundsStart = null;
+    },
     onNorthWestPan(e) {
       const view = this.view;
       const boundsStart = this.boundsStart;
@@ -159,14 +143,7 @@ export default {
 
       this.$emit("updateBounds", newBounds);
     },
-    onNorthWestPanStart() {
-      this.$emit("moveStart");
-      this.boundsStart = this.frame.bounds;
-    },
-    onNorthWestPanEnd() {
-      this.$emit("moveEnd");
-      this.boundsStart = null;
-    },
+
     onSouthEastPan(e) {
       const boundsStart = this.boundsStart;
       const view = this.view;
@@ -188,14 +165,6 @@ export default {
         y: [boundsStart.y[0], newY]
       };
       this.$emit("updateBounds", newBounds);
-    },
-    onSouthEastPanStart() {
-      this.$emit("moveStart");
-      this.boundsStart = this.frame.bounds;
-    },
-    onSouthEastPanEnd() {
-      this.$emit("moveEnd");
-      this.boundsStart = null;
     }
   }
 };

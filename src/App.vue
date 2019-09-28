@@ -10,7 +10,13 @@
     v-hammer:pan="onPan"
     v-hammer:swipe="onSwipe"
   >
-    <navigating-mode :screen="screen" :stack="stack" v-if="mode === 'navigating'" />
+    <navigating-mode
+      @move-start="movingFrame = true"
+      @move-end="onMoveEnd"
+      :screen="screen"
+      :stack="stack"
+      v-if="mode === 'navigating'"
+    />
     <wiring-mode :screen="screen" :stack="stack" v-if="mode === 'wiring'" />
   </div>
 </template>
@@ -42,8 +48,8 @@ export default {
     const spawn = this.$store.spawnFrame;
     const _0 = spawn(null, { x: [-20, 20], y: [-20, 20] });
     const _1 = spawn(_0, { x: [-10, 17], y: [-17, 17] });
-    const _2 = spawn(_1, { x: [-9, 0], y: [-10, 0] });
-    spawn(_2, { x: [1, 16], y: [-5, 16] });
+    spawn(_1, { x: [-9, 0], y: [-10, 0] });
+    spawn(_1, { x: [1, 16], y: [-5, 16] });
     this.rootFrame = _0;
   },
   beforeDestroy() {
