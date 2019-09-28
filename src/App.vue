@@ -18,7 +18,7 @@
 <script>
 import * as ft from "froto";
 import { from } from "froto";
-import Vue from "vue";
+// import Vue from "vue";
 import WiringMode from "./components/WiringMode";
 import NavigatingMode from "./components/NavigatingMode";
 export default {
@@ -32,40 +32,19 @@ export default {
       mode: "navigating",
       movingFrame: false,
       collapsedStore: {},
-      viewPinchStart: null
+      viewPinchStart: null,
+      rootFrame: null
     };
   },
   mounted() {
-    // 0: {
-    //   parent: null,
-    //   children: [1],
-    //   bounds: { x: [-20, 20], y: [-20, 20] },
-    //   hue: 280,
-    //   // optional frame properties:
-    //   // type: null // default/null type is just a basic frame
-    //   // tags: [] // searchable strings for users to locate frames
-    //   // data: {} // storage for details about this node
-    // },
-    // 1: {
-    //   parent: 0,
-    //   children: [2, 3],
-    //   bounds: { x: [-10, 17], y: [-17, 17] },
-    //   hue: 80,
-    // },
-    // 2: {
-    //   parent: 1,
-    //   children: [],
-    //   bounds: { x: [-9, 0], y: [-10, 0] },
-    //   hue: 160,
-    // },
-    // 3: {
-    //   parent: 1,
-    //   children: [],
-    //   bounds: { x: [1, 16], y: [-5, 16] },
-    //   hue: 190,
-    // },
     this.updateSize();
     window.addEventListener("resize", this.updateSize);
+    const spawn = this.$store.spawnFrame;
+    const _0 = spawn(null, { x: [-20, 20], y: [-20, 20] });
+    const _1 = spawn(_0, { x: [-10, 17], y: [-17, 17] });
+    const _2 = spawn(_1, { x: [-9, 0], y: [-10, 0] });
+    spawn(_2, { x: [1, 16], y: [-5, 16] });
+    this.rootFrame = _0;
   },
   beforeDestroy() {
     window.removeEventListener("resize", this.updateSize);
@@ -127,32 +106,13 @@ export default {
       const y = ft.grow(currentDurationY * change, yOrigin, this.view.y);
       this.$store.setView({ x, y });
     },
-    getFrameParent(id) {
-      return (this.frames[id] && this.frames[this.frames[id].parent]) || null;
-    },
     updateSize() {
       this.screen = {
         x: [0, this.$el.clientWidth],
         y: [0, this.$el.clientHeight]
       };
     },
-    // detect the visible frame at a coordinate [x, y]
-    scanCoordinate([x, y], id = -1) {
-      if (id === -1) id = this.rootFrame;
-      const containsX = ft.contains(this.frames[id].bounds.x, x);
-      const containsY = ft.contains(this.frames[id].bounds.y, y);
-      if (containsX && containsY) {
-        // give children a chance to intercept because they are in front
-        if (!this.collapsedStore[id]) {
-          return this.frames[id].children.reduce((result, candidate) => {
-            const found = this.scanCoordinate([x, y], candidate);
-            return found !== undefined ? found : result;
-          }, id);
-        } else {
-          return id;
-        }
-      }
-    },
+
     onMoveEnd() {
       setTimeout(() => (this.movingFrame = false), 10);
     }
@@ -162,24 +122,17 @@ export default {
       let result = [];
       const view = this.view;
       const scanFrame = id => {
-        const frame = this.frames[id];
+        const frame = this.$store.state.frames[id];
         const containsX = ft.containsRange(view.x, frame.bounds.x);
         const containsY = ft.containsRange(view.y, frame.bounds.y);
         if (containsX && containsY) {
           result.push(id);
-          // 0-1 of how much of the view this takes up
-          const viewRatio = ft.duration(
-            frame.bounds.x.map(ft.from(this.view.x))
-          );
-          if (viewRatio > 0.2) {
-            frame.children.forEach(scanFrame);
-            Vue.set(this.collapsedStore, id, false);
-          } else {
-            Vue.set(this.collapsedStore, id, true);
-          }
+          frame.children.forEach(scanFrame);
         }
       };
-      scanFrame(this.rootFrame);
+      if (this.rootFrame !== null) {
+        scanFrame(this.rootFrame);
+      }
       return result;
     },
     view() {
