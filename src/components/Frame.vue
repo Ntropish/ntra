@@ -8,6 +8,7 @@
       v-hammer:panend="onNorthWestPanEnd"
       v-hammer:panstart="onNorthWestPanStart"
       v-hammer:tap="onTap"
+      :style="northWestStyle"
     >
       <font-awesome-icon icon="ellipsis-v" />
     </div>
@@ -66,44 +67,36 @@ export default {
         frame.bounds.y.map(ft.from(this.view.y)).map(normalClamp)
       );
 
-      const frameColor = `hsla(${this.frame.hue}, 90%, 70%, 0.95)`;
-      const frameColorBorder = `hsla(${this.frame.hue}, 60%, 60%, 0.45)`;
+      const paneHeight = ft.duration(this.screen.y) * height;
+
+      const fontSize = paneHeight * 0.05 + "px";
 
       const result = {
+        fontSize,
+        lineHeight: fontSize,
         // but top and left are 0-1
         top: normalClamp(top) * 100 + "%",
         left: normalClamp(left) * 100 + "%",
         width: width * 100 + "%",
-        height: height * 100 + "%"
+        height: height * 100 + "%",
+        boxShadow:
+          `0 1em 1em -0.5em hsla(${this.frame.hue}, 60%, 20%, 0.2),` +
+          `0 2em 2em -1em hsla(${this.frame.hue}, 60%, 20%, 0.3)`
       };
-
-      result.boxShadow =
-        `0 1em 1em -0.5em hsla(${this.frame.hue}, 60%, 20%, 0.2),` +
-        `0 2em 2em -1em hsla(${this.frame.hue}, 60%, 20%, 0.3)`;
 
       return result;
     },
     boundsStyle() {
-      const boxShadow =
-        `0 1em 1em -0.5em hsla(${this.frame.hue}, 60%, 20%, 0.2),` +
-        `0 2em 2em -1em hsla(${this.frame.hue}, 60%, 20%, 0.3)`;
       const background = `hsla(${this.frame.hue}, 90%, 70%, 0.95)`;
       return {
-        boxShadow,
         background
       };
     },
     southEastStyle() {
-      const left = this.frame.bounds.x
-        .map(from(this.view.x))
-        .map(to(this.screen.x))[1];
-      const top = this.frame.bounds.y
-        .map(from(this.view.y))
-        .map(to(this.screen.y))[1];
-      return {
-        left: `calc(${left}px - 3em)`,
-        top: `calc(${top}px - 3em)`
-      };
+      return {};
+    },
+    northWestStyle() {
+      return {};
     },
     drawingStyle() {
       if (!this.drawing) {
@@ -164,8 +157,8 @@ export default {
       const deltaViewY = ft.duration(
         [0, e.deltaY].map(from(this.screen.y)).map(to(view.y))
       );
-      const xMin = parent ? parent.bounds.x[0] : Infinity;
-      const yMin = parent ? parent.bounds.y[0] : Infinity;
+      const xMin = parent ? parent.bounds.x[0] : -Infinity;
+      const yMin = parent ? parent.bounds.y[0] : -Infinity;
       const xClamp = ft.clamp([xMin, boundsStart.x[1] - xBlock]);
       const yClamp = ft.clamp([yMin, boundsStart.y[1] - yBlock]);
       const newX = xClamp(boundsStart.x[0] + deltaViewX);
@@ -215,26 +208,6 @@ export default {
       this.$emit("moveEnd");
       this.boundsStart = null;
     }
-    // onDraw(e) {
-    //   const x = ft.line(this.screen.x, this.view.x, e.pointers[0].clientX);
-    //   const y = ft.line(this.screen.y, this.view.y, e.pointers[0].clientY);
-    //   Vue.set(this.drawing.x, 1, ft.clamp(this.frame.bounds.x, x));
-    //   Vue.set(this.drawing.y, 1, ft.clamp(this.frame.bounds.y, y));
-    // },
-    // onDrawStart(e) {
-    //   const x = ft.line(this.screen.x, this.view.x, e.pointers[0].clientX);
-    //   const y = ft.line(this.screen.y, this.view.y, e.pointers[0].clientY);
-    //   Vue.set(this, "drawing", { x: [x, x], y: [y, y] });
-    // },
-    // onDrawEnd() {
-    //   if (this.drawing) {
-    //     this.$emit("spawnFrame", {
-    //       x: this.drawing.x.sort((a, b) => a - b),
-    //       y: this.drawing.y.sort((a, b) => a - b)
-    //     });
-    //   }
-    //   this.drawing = null;
-    // }
   }
 };
 </script>
@@ -244,18 +217,12 @@ export default {
   box-sizing: border-box;
 }
 .frame {
-  color: hsla(0, 0%, 0%, 0.2);
   text-shadow: 0px 2px 0.3em hsla(0, 0%, 100%, 0.2),
     0px 0px 0.1em hsla(0, 0%, 0%, 0.2);
   font-weight: 900;
   font-size: 2em;
   text-align: left;
   position: absolute;
-}
-
-.frame.collapsed {
-  text-align: center;
-  background: transparent;
 }
 
 .frame:not(.collapsed) {
@@ -273,37 +240,32 @@ export default {
 }
 
 .north-west {
+  color: hsla(0, 0%, 0%, 0.1);
   position: absolute;
-  font-size: 0.5em;
-  line-height: 3em;
-  width: 3em;
-  height: 3em;
+  left: 0.25em;
+  top: 2.5%;
+  width: 10%;
+  height: 10%;
   cursor: grab;
-  text-align: center;
+  text-align: left;
 }
 
-.frame.collapsed .north-west {
-}
-.frame.collapsed .south-east {
+.north-west:hover {
+  color: hsla(0, 0%, 0%, 0.3);
 }
 
 .south-east {
-  position: fixed;
+  color: hsla(0, 0%, 0%, 0.1);
+  right: 0.25em;
+  bottom: -2.5%;
+  position: absolute;
   cursor: grab;
-  text-align: center;
-  font-size: 0.5em;
-  line-height: 3em;
-  width: 3em;
-  height: 3em;
+  text-align: right;
+  width: 10%;
+  height: 10%;
 }
 
-.drawing {
-  position: fixed;
-  z-index: 11;
-}
-
-.drag-handle {
-  font-size: 0.5em;
-  padding: 0.1em;
+.south-east:hover {
+  color: hsla(0, 0%, 0%, 0.3);
 }
 </style>
