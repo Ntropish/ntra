@@ -132,10 +132,8 @@ export default {
           }
         };
         scanFrame(this.rootFrame);
-        console.log(result);
         return result;
       } else {
-        console.log([]);
         return [];
       }
     },
