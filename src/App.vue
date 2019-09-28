@@ -1,6 +1,6 @@
 <template>
   <div
-    id="app"
+    class="app"
     @mousewheel="onScroll"
     v-hammer:pinchend="onPinchEnd"
     v-hammer:pinchstart="onPinchStart"
@@ -10,8 +10,8 @@
     v-hammer:pan="onPan"
     v-hammer:swipe="onSwipe"
   >
-    <navigating-mode v-if="mode === 'navigating'" />
-    <wiring-mode v-if="mode === 'wiring'" />
+    <navigating-mode :screen="screen" :stack="stack" v-if="mode === 'navigating'" />
+    <wiring-mode :screen="screen" :stack="stack" v-if="mode === 'wiring'" />
   </div>
 </template>
 
@@ -29,9 +29,9 @@ export default {
   },
   data() {
     return {
+      screen: { x: [0, 0], y: [0, 0] },
       mode: "navigating",
       movingFrame: false,
-      collapsedStore: {},
       viewPinchStart: null,
       rootFrame: null
     };
@@ -118,22 +118,26 @@ export default {
     }
   },
   computed: {
-    frameStack() {
-      let result = [];
-      const view = this.view;
-      const scanFrame = id => {
-        const frame = this.$store.state.frames[id];
-        const containsX = ft.containsRange(view.x, frame.bounds.x);
-        const containsY = ft.containsRange(view.y, frame.bounds.y);
-        if (containsX && containsY) {
-          result.push(id);
-          frame.children.forEach(scanFrame);
-        }
-      };
-      if (this.rootFrame !== null) {
+    stack() {
+      if (typeof this.rootFrame === "number") {
+        let result = [];
+        const view = this.view;
+        const scanFrame = id => {
+          const frame = this.$store.state.frames[id];
+          const containsX = ft.containsRange(view.x, frame.bounds.x);
+          const containsY = ft.containsRange(view.y, frame.bounds.y);
+          if (containsX && containsY) {
+            result.push(id);
+            frame.children.forEach(scanFrame);
+          }
+        };
         scanFrame(this.rootFrame);
+        console.log(result);
+        return result;
+      } else {
+        console.log([]);
+        return [];
       }
-      return result;
     },
     view() {
       return this.$store.state.view;
@@ -155,7 +159,7 @@ body {
 body {
   background: #1c1e20;
 }
-#app {
+.app {
   overflow: hidden;
   position: absolute;
   left: 0;

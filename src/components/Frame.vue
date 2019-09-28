@@ -1,5 +1,5 @@
 <template>
-  <div class="frame" :class="{ collapsed: collapsed }" :style="styles">
+  <div class="frame" :style="styles">
     <div class="bounds" v-hammer:tap="onBoundsTap" :style="boundsStyle"></div>
     <div class="drawing" :style="drawingStyle"></div>
     <div
@@ -30,7 +30,7 @@ import * as ft from "froto";
 import { from, to } from "froto";
 export default {
   name: "frame",
-  props: ["view", "frame", "screen", "collapsed", "parent", "depth"],
+  props: ["frame", "screen"],
   data() {
     return {
       boundsStart: null,
@@ -39,8 +39,8 @@ export default {
     };
   },
   computed: {
-    title() {
-      return this.frame.name;
+    view() {
+      return this.$store.state.view;
     },
     styles() {
       const normalClamp = ft.clamp([0, 1]);
